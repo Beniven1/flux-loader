@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Your Name/Flux Project
+ * Copyright (c) 2025 Beniven/Flux Project
  * A parser for fabric.mod.json, strictly modeled on the FML ModFileParser.
  * This is a self-contained parser.
  * SPDX-License-Identifier: LGPL-2.1-only

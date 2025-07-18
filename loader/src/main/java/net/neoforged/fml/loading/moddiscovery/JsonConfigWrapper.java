@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Your Name/Flux Project
+ * Copyright (c) 2025 Beniven/Flux Project
  * The smarter wrapper that can translate property names.
  * SPDX-License-Identifier: LGPL-2.1-only
  */
@@ -40,9 +40,6 @@ public class JsonConfigWrapper implements IConfigurable {
 
         String key = path[0];
 
-        // ======================================================================
-        // ===== START OF THE NEW, SMARTER DECEPTION LOGIC ======================
-        // ======================================================================
         // This is our translation layer.
         switch (key) {
             // If FML asks for "modId", we give it the value of "id" from the JSON.
@@ -64,9 +61,6 @@ public class JsonConfigWrapper implements IConfigurable {
             default:
                 return Optional.ofNullable((T) data.get(key));
         }
-        // ======================================================================
-        // ===== END OF THE NEW, SMARTER DECEPTION LOGIC ========================
-        // ======================================================================
     }
 
     @Override
