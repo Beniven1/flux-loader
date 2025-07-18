@@ -16,6 +16,7 @@ import java.util.function.Function;
 import net.neoforged.fml.ModLoadingException;
 import net.neoforged.fml.ModLoadingIssue;
 import net.neoforged.fml.loading.LogMarkers;
+import net.neoforged.fml.loading.moddiscovery.FluxFileParser;
 import net.neoforged.fml.loading.moddiscovery.ModFile;
 import net.neoforged.fml.loading.moddiscovery.ModFileParser;
 import net.neoforged.fml.loading.moddiscovery.ModJarMetadata;
@@ -35,6 +36,7 @@ public class JarModsDotTomlModFileReader implements IModFileReader {
     private static final Logger LOGGER = LogUtils.getLogger();
     public static final String MODS_TOML = "META-INF/neoforge.mods.toml";
     public static final String MANIFEST = "META-INF/MANIFEST.MF";
+    public static final String FABRIC_MOD_JSON = "fabric.mod.json"; // flux fabric support
 
     public static IModFile createModFile(JarContents contents, ModFileDiscoveryAttributes discoveryAttributes) {
         var type = getModType(contents);
@@ -44,6 +46,11 @@ public class JarModsDotTomlModFileReader implements IModFileReader {
             var mjm = new ModJarMetadata(contents);
             mod = new ModFile(SecureJar.from(contents, mjm), ModFileParser::modsTomlParser, discoveryAttributes);
             mjm.setModFile(mod);
+        } else if (contents.findFile(FABRIC_MOD_JSON).isPresent()) {
+            LOGGER.debug(LogMarkers.SCAN, "FLUX: Found {} in {}. Creating a ModFile.", FABRIC_MOD_JSON, contents.getPrimaryPath());
+            // We create a simple SecureJar because we don't have ModJarMetadata.
+            // And we tell it to use OUR new parser function from a new class we will create.
+            mod = new ModFile(SecureJar.from(contents), FluxFileParser::fabricModJsonParser, discoveryAttributes);
         } else if (type != null) {
             LOGGER.debug(LogMarkers.SCAN, "Found {} mod of type {}: {}", MANIFEST, type, contents.getPrimaryPath());
             mod = new ModFile(SecureJar.from(contents), JarModsDotTomlModFileReader::manifestParser, type, discoveryAttributes);

@@ -56,40 +56,67 @@ public class ModFileInfo implements IModFileInfo, IConfigurable {
         this.modFile = modFile;
         this.config = config;
         configFileConsumer.accept(this);
-        // modloader is essential
-        var modLoader = config.<String>getConfigElement("modLoader")
-                .orElseThrow(() -> new InvalidModFileException("Missing ModLoader in file", this));
-        // as is modloader version
-        var modLoaderVersion = config.<String>getConfigElement("loaderVersion")
-                .map(MavenVersionAdapter::createFromVersionSpec)
-                .orElseThrow(() -> new InvalidModFileException("Missing ModLoader version in file", this));
-        this.languageSpecs = new ArrayList<>(List.of(new LanguageSpec(modLoader, modLoaderVersion)));
-        // the remaining properties are optional with sensible defaults
-        this.license = config.<String>getConfigElement("license")
-                .orElse("");
-        // Validate the license is set. Only apply this validation to mods.
-        if (this.license.isBlank()) {
-            throw new InvalidModFileException("Missing license", this);
+        if (config instanceof JsonConfigWrapper) {
+            // THIS IS A FLUX-HANDLED FABRIC MOD. WE USE SAFE DEFAULTS.
+            LOGGER.info(">>>>> FLUX: Bypassing hostile ModFileInfo constructor for {}. <<<<<", modFile.getFileName());
+
+            // Provide safe, default values for all the required fields.
+            this.languageSpecs = new ArrayList<>(List.of(new LanguageSpec("lowcodefml", MavenVersionAdapter.createFromVersionSpec("[0,)"))));
+            LOGGER.info(">>>>> FLUX: Deceiving FML with fake 'lowcodefml' language provider. <<<<<");
+            this.license = config.<String>getConfigElement("license").orElse("Unknown");
+            this.showAsResourcePack = false;
+            this.showAsDataPack = false;
+            this.usesServices = config.<List<String>>getConfigElement("services").orElse(List.of());
+            this.properties = Collections.emptyMap();
+            this.modFile.setFileProperties(this.properties);
+            this.issueURL = null;
+
+            // The mods list is essential, so we still parse it.
+            final List<? extends IConfigurable> modConfigs = config.getConfigList("mods");
+            if (modConfigs.isEmpty()) {
+                throw new InvalidModFileException("Flux: Fabric mod is missing 'mods' list entry", this);
+            }
+            this.mods = modConfigs.stream()
+                    .map(mi -> (IModInfo) new ModInfo(this, mi))
+                    .toList();
+
+        } else {
+            // THIS IS A NORMAL NEOFORGE MOD. LET THE ORIGINAL, STRICT CODE RUN.
+            // modloader is essential
+            var modLoader = config.<String>getConfigElement("modLoader")
+                    .orElseThrow(() -> new InvalidModFileException("Missing ModLoader in file", this));
+            // as is modloader version
+            var modLoaderVersion = config.<String>getConfigElement("loaderVersion")
+                    .map(MavenVersionAdapter::createFromVersionSpec)
+                    .orElseThrow(() -> new InvalidModFileException("Missing ModLoader version in file", this));
+            this.languageSpecs = new ArrayList<>(List.of(new LanguageSpec(modLoader, modLoaderVersion)));
+            // the remaining properties are optional with sensible defaults
+            this.license = config.<String>getConfigElement("license")
+                    .orElse("");
+            // Validate the license is set. Only apply this validation to mods.
+            if (this.license.isBlank()) {
+                throw new InvalidModFileException("Missing license", this);
+            }
+            this.showAsResourcePack = config.<Boolean>getConfigElement("showAsResourcePack")
+                    .orElse(false);
+            this.showAsDataPack = config.<Boolean>getConfigElement("showAsDataPack")
+                    .orElse(false);
+            this.usesServices = config.<List<String>>getConfigElement("services")
+                    .orElse(List.of());
+            this.properties = config.<Map<String, Object>>getConfigElement("properties")
+                    .orElse(Collections.emptyMap());
+            this.modFile.setFileProperties(this.properties);
+            this.issueURL = config.<String>getConfigElement("issueTrackerURL")
+                    .map(StringUtils::toURL)
+                    .orElse(null);
+            final List<? extends IConfigurable> modConfigs = config.getConfigList("mods");
+            if (modConfigs.isEmpty()) {
+                throw new InvalidModFileException("Missing mods list", this);
+            }
+            this.mods = modConfigs.stream()
+                    .map(mi -> (IModInfo) new ModInfo(this, mi))
+                    .toList();
         }
-        this.showAsResourcePack = config.<Boolean>getConfigElement("showAsResourcePack")
-                .orElse(false);
-        this.showAsDataPack = config.<Boolean>getConfigElement("showAsDataPack")
-                .orElse(false);
-        this.usesServices = config.<List<String>>getConfigElement("services")
-                .orElse(List.of());
-        this.properties = config.<Map<String, Object>>getConfigElement("properties")
-                .orElse(Collections.emptyMap());
-        this.modFile.setFileProperties(this.properties);
-        this.issueURL = config.<String>getConfigElement("issueTrackerURL")
-                .map(StringUtils::toURL)
-                .orElse(null);
-        final List<? extends IConfigurable> modConfigs = config.getConfigList("mods");
-        if (modConfigs.isEmpty()) {
-            throw new InvalidModFileException("Missing mods list", this);
-        }
-        this.mods = modConfigs.stream()
-                .map(mi -> (IModInfo) new ModInfo(this, mi))
-                .toList();
         if (LOGGER.isDebugEnabled(LogMarkers.LOADING)) {
             LOGGER.debug(LogMarkers.LOADING, "Found valid mod file {} with {} mods - versions {}",
                     this.modFile.getFileName(),

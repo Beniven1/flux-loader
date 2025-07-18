@@ -37,6 +37,7 @@ public enum IncompatibleModReason {
 
     public static Optional<IncompatibleModReason> detect(JarContents jar) {
         return Arrays.stream(values())
+                .filter(reason -> reason != FABRIC && reason != QUILT)
                 .filter(i -> i.ident.test(jar))
                 .findAny();
     }
